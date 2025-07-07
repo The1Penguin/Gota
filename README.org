@@ -1,0 +1,18 @@
+* Göta
+
+Göta will, hopefully, become a layout generator for [[https://codeberg.org/river/river][River]].
+Since I am a nerd, it will obviously be written in Haskell, and have a flake ;P.
+It will mainly be based on how [[https://git.sr.ht/~novakane/rivercarro][rivercarro]] and [[https://gitlab.com/akumar-xyz/riveroverflow][riveroverflow]], in that I want it to be like rivercarro, since I have used that for multiple years, but want an overflow system as well that mimics how [[github.com/YaLTeR/niri][niri]] does scrolling.
+
+This will however entail fixing a lot of bindings, and probably using template Haskell, which I am not used to other than messing around with lenses.
+
+** Challenges
+- Wayland-scanner / protocol stuffs
+- C bindings
+
+** Links
+- https://codeberg.org/river/wiki/src/branch/master/pages/Community-Layouts.md
+- https://github.com/granolaonicecream/hello-wayland-hs
+- https://github.com/l-Shane-l/tiny-wlhs
+- https://github.com/waymonad/waymonad
+- https://hackage.haskell.org/package/hayland-0.1.0.1
