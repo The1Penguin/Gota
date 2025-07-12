@@ -1,84 +1,60 @@
 {
-  description = "Gota goes flakes";
+  description = "Gota";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    flake-utils.url = "github:numtide/flake-utils";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    utils.url = "github:numtide/flake-utils";
   };
 
-  nixConfig.allow-import-from-derivation = true; # cabal2nix uses IFD
+  outputs = {
+    self,
+    nixpkgs,
+    utils,
+    ...
+  }:
+    utils.lib.eachDefaultSystem
+    (
+      system: let
+        pkgs = import nixpkgs {inherit system;};
+        toolchain = pkgs.rustPlatform;
+      in rec
+      {
+        packages.default = toolchain.buildRustPackage {
+          pname = "gota";
+          version = "0.1.0";
+          src = ./.;
+          cargoLock.lockFile = ./Cargo.lock;
 
-  outputs = { self, nixpkgs, flake-utils }:
-    let
-      ghcVer = "ghc912";
-      makeHaskellOverlay = overlay: final: prev: {
-        haskell = prev.haskell // {
-          packages = prev.haskell.packages // {
-            ${ghcVer} = prev.haskell.packages."${ghcVer}".override (oldArgs: {
-              overrides =
-                prev.lib.composeExtensions (oldArgs.overrides or (_: _: { }))
-                  (overlay prev);
-            });
-          };
+          # For other makeRustPlatform features see:
+          # https://github.com/NixOS/nixpkgs/blob/master/doc/languages-frameworks/rust.section.md#cargo-features-cargo-features
+          nativeBuildInputs = with pkgs; [
+            pkg-config
+            openssl
+            openssl.dev
+          ];
+          PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
         };
-      };
 
-      out = system:
-        let
-          pkgs = import nixpkgs {
-            inherit system;
-            overlays = [ self.overlays.default ];
-            config.allowBroken = true;
-          };
+        apps.default = utils.lib.mkApp {drv = packages.default;};
 
-        in
-        {
-          packages = rec {
-            default = gota;
-            gota = pkgs.haskell.packages.${ghcVer}.gota;
-          };
+        devShells.default = pkgs.mkShell {
+          buildInputs = with pkgs; [
+            (with toolchain; [
+              cargo
+              rustc
+              rustLibSrc
+            ])
+            clippy
+            rustfmt
+            rust-analyzer
+            pkg-config
+            gdb
+            lldb
+          ];
 
-          checks = {
-            inherit (self.packages.${system}) gota;
-          };
-
-          # for debugging
-          # inherit pkgs;
-
-          devShells.default =
-            let haskellPackages = pkgs.haskell.packages.${ghcVer};
-            in
-            haskellPackages.shellFor {
-              packages = p: [ self.packages.${system}.gota ];
-              withHoogle = true;
-              buildInputs =
-                (with pkgs; [
-                  zlib
-                ]) ++
-                (with haskellPackages; [
-                  haskell-language-server
-                  cabal-install
-                ]);
-              # Change the prompt to show that you are in a devShell
-              # shellHook = "export PS1='\\e[1;34mdev > \\e[0m'";
-            };
+          # Specify the rust-src path (many editors rely on this)
+          RUST_SRC_PATH = "${toolchain.rustLibSrc}";
         };
-    in
-    flake-utils.lib.eachDefaultSystem out // {
-      # this stuff is *not* per-system
-      overlays = {
-        default = makeHaskellOverlay (prev: hfinal: hprev:
-          let hlib = prev.haskell.lib; in
-          {
-            gota = hprev.callCabal2nix "gota" ./. { };
-
-            # here's how to do hacks to the package set
-            # don't run the test suite
-            # fast-tags = hlib.dontCheck hprev.fast-tags;
-            #
-            # don't check version bounds
-            # friendly = hlib.doJailbreak hprev.friendly;
-        });
-      };
-    };
+      }
+    );
 }
